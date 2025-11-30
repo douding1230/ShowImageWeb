@@ -1,11 +1,19 @@
+<div align="center">
+
 # ShowImageWeb
 
-AI图像生成网页交互平台 - 基于Streamlit构建的Web应用，提供简洁的用户界面和实用的图像生成功能
+</div>
+
+<div align="center">
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.29.0-red.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-20.10+-blue.svg)
+
+</div>
+
+AI图像生成网页交互平台 - 基于Streamlit构建的Web应用，提供简洁的用户界面和实用的图像生成功能
 
 ## 应用预览
 
