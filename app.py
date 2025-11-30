@@ -764,11 +764,11 @@ with col3:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # 分隔线
-st.markdown('<div style="height: 1px; background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), rgba(240, 147, 251, 0.1), transparent); margin: 2rem 0;"></div>', unsafe_allow_html=True)
+st.markdown('<div style="height: 1px; background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), rgba(240, 147, 251, 0.1), transparent); margin: 1rem 0;"></div>', unsafe_allow_html=True)
 
 # 快速示例提示 - 移除条件限制，让示例始终显示
 if not st.session_state.is_generating:
-    st.markdown('<div style="margin-top: 2rem; text-align: center;"><h4 style="color: rgba(255,255,255,0.9); margin-bottom: 1rem;">💡 灵感示例</h4>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top: 0.5rem; text-align: center;"><h4 style="color: rgba(255,255,255,0.9); margin-bottom: 0.8rem;">💡 灵感示例</h4>', unsafe_allow_html=True)
 
     # 使用列布局创建灵感按钮
     col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])

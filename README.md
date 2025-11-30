@@ -18,7 +18,7 @@ AI图像生成网页交互平台 - 基于Streamlit构建的Web应用，提供简
 ## 应用预览
 
 ![ShowImageWeb Demo](assets/showimage-web-demo.png)
-
+![ShowImageWeb Demo](assets/showimage-web-demo1.png)
 ## 项目结构
 
 ```
