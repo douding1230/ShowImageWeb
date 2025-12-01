@@ -940,39 +940,6 @@ with col3:
 # 分隔线
 st.markdown('<div style="height: 1px; background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), rgba(240, 147, 251, 0.1), transparent); margin: 1rem 0;"></div>', unsafe_allow_html=True)
 
-# 快速示例提示 - 只在非生成状态、没有输入内容且从未生成时显示
-if not st.session_state.is_generating and not st.session_state.saved_prompt and not st.session_state.has_generated:
-    st.markdown('<div style="margin-top: 0.5rem; text-align: center;"><h4 style="color: rgba(255,255,255,0.9); margin-bottom: 0.8rem;">💡 灵感示例</h4>', unsafe_allow_html=True)
-
-    # 使用列布局创建灵感按钮
-    col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
-
-    with col1:
-        if st.button("🏰 童话城堡", key="inspiration_1", help="点击填充童话城堡描述", use_container_width=True):
-            st.session_state.filled_prompt = "一座宏伟的童话城堡坐落在云朵之上，高耸的塔楼闪烁着金色的光芒"
-            st.rerun()
-
-    with col2:
-        if st.button("🌸 樱花庭院", key="inspiration_2", help="点击填充樱花庭院描述", use_container_width=True):
-            st.session_state.filled_prompt = "春日樱花盛开的日式庭院，粉色花瓣飘落在青石板上"
-            st.rerun()
-
-    with col3:
-        if st.button("🚀 科幻太空站", key="inspiration_3", help="点击填充科幻太空站描述", use_container_width=True):
-            st.session_state.filled_prompt = "未来主义科幻太空站，巨大的环形结构悬浮在星空之中"
-            st.rerun()
-
-    with col4:
-        if st.button("🐉 巨龙守护者", key="inspiration_4", help="点击填充巨龙守护者描述", use_container_width=True):
-            st.session_state.filled_prompt = "古老的巨龙守护着神秘的森林入口，鳞片在月光下闪闪发亮"
-            st.rerun()
-
-    with col5:
-        if st.button("🌆 赛博都市", key="inspiration_5", help="点击填充赛博都市描述", use_container_width=True):
-            st.session_state.filled_prompt = "赛博朋克风格的未来都市，霓虹灯闪烁的摩天大楼"
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. 生成逻辑 (通过状态控制) ---
 if st.session_state.is_generating or (hasattr(st.session_state, 'is_processing') and st.session_state.is_processing):
@@ -1116,11 +1083,11 @@ if st.session_state.is_generating or (hasattr(st.session_state, 'is_processing')
 
 # 画廊标题和装饰
 st.markdown("""
-<div style="text-align: center; margin: 3rem 0 2rem 0;">
-    <h2 style="color: white; font-size: 2.5rem; margin-bottom: 1rem;">
+<div style="text-align: center; margin: 0.5rem 0 0.5rem 0;">
+    <h2 style="color: white; font-size: 2rem; margin-bottom: 0.3rem;">
         🎨 AI 作品画廊
     </h2>
-    <div style="height: 3px; background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #667eea);
+    <div style="height: 2px; background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #667eea);
                 background-size: 300% 100%; animation: gradientShift 3s ease infinite;
                 border-radius: 5px; margin: 0 auto; width: 200px;"></div>
 </div>
