@@ -1,10 +1,13 @@
 import streamlit as st
 import requests
+import cloudscraper
 import base64
 import time
 import random
 from datetime import datetime
 import json
+import os
+import hashlib
 
 # --- 1. 页面基础配置 ---
 st.set_page_config(
@@ -553,6 +556,113 @@ if 'history' not in st.session_state:
 if 'is_generating' not in st.session_state:
     st.session_state.is_generating = False
 
+# --- 持久化存储功能 ---
+def get_image_hash(image_bytes):
+    """生成图片的唯一哈希值"""
+    return hashlib.md5(image_bytes).hexdigest()
+
+def load_saved_gallery():
+    """从文件加载保存的画廊"""
+    gallery_file = "saved_gallery/gallery.json"
+    if os.path.exists(gallery_file):
+        try:
+            with open(gallery_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            st.error(f"加载保存的画廊失败: {e}")
+            return []
+    return []
+
+def save_gallery_to_file():
+    """将画廊保存到文件"""
+    gallery_file = "saved_gallery/gallery.json"
+    os.makedirs("saved_gallery", exist_ok=True)
+    try:
+        with open(gallery_file, 'w', encoding='utf-8') as f:
+            json.dump(st.session_state.saved_gallery, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"保存画廊失败: {e}")
+        return False
+
+def save_image_to_file(image_bytes, image_id):
+    """保存图片文件到磁盘"""
+    image_dir = "saved_gallery/images"
+    os.makedirs(image_dir, exist_ok=True)
+    image_path = f"{image_dir}/{image_id}.png"
+    try:
+        with open(image_path, 'wb') as f:
+            f.write(image_bytes)
+        return image_path
+    except Exception as e:
+        st.error(f"保存图片失败: {e}")
+        return None
+
+def add_to_saved_gallery(prompt, image_bytes, seed, duration):
+    """将图片添加到保存的画廊"""
+    image_id = f"{int(time.time())}"
+    image_hash = get_image_hash(image_bytes)
+
+    # 检查是否已存在相同的图片
+    for item in st.session_state.saved_gallery:
+        if item.get('hash') == image_hash:
+            st.toast("🎨 该作品已在画廊中", icon="✅")
+            return False
+
+    # 保存图片文件
+    image_path = save_image_to_file(image_bytes, image_id)
+    if not image_path:
+        return False
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    gallery_item = {
+        "id": image_id,
+        "prompt": prompt,
+        "image_path": image_path,
+        "hash": image_hash,
+        "seed": seed,
+        "time": timestamp,
+        "duration": f"{duration:.2f}s",
+        "saved_at": time.time()
+    }
+
+    st.session_state.saved_gallery.insert(0, gallery_item)
+
+    # 保存到文件
+    if save_gallery_to_file():
+        st.toast("🎉 作品已保存到画廊!", icon="✅")
+        return True
+    return False
+
+def remove_from_saved_gallery(image_id):
+    """从保存的画廊中移除图片"""
+    for i, item in enumerate(st.session_state.saved_gallery):
+        if item["id"] == image_id:
+            # 删除图片文件
+            try:
+                if os.path.exists(item["image_path"]):
+                    os.remove(item["image_path"])
+            except Exception as e:
+                st.warning(f"删除图片文件失败: {e}")
+
+            # 从列表中移除
+            st.session_state.saved_gallery.pop(i)
+
+            # 保存更新后的画廊
+            save_gallery_to_file()
+            st.toast("🗑️ 作品已从画廊移除", icon="✅")
+            return True
+    return False
+
+# --- 3. 状态管理 ---
+# 初始化历史记录
+if 'history' not in st.session_state:
+    st.session_state.history = []
+
+# 初始化生成状态（用于控制按钮变灰）
+if 'is_generating' not in st.session_state:
+    st.session_state.is_generating = False
+
 # 初始化填充提示状态
 if 'filled_prompt' not in st.session_state:
     st.session_state.filled_prompt = ""
@@ -564,6 +674,10 @@ if 'saved_prompt' not in st.session_state:
 # 初始化生成记录状态
 if 'has_generated' not in st.session_state:
     st.session_state.has_generated = False
+
+# 初始化保存的画廊状态
+if 'saved_gallery' not in st.session_state:
+    st.session_state.saved_gallery = load_saved_gallery()
 
 def add_to_history(prompt, image_bytes, seed, duration):
     """将生成的图片添加到历史记录的最前面"""
@@ -610,11 +724,16 @@ with st.sidebar:
         help="完整的API接口地址",
         label_visibility="visible"
     )
+
+    # --- 默认 Key ---
+    DEFAULT_API_KEY = "sk-zKTGcw8llBFZLpXAAsxTmMSmCfY8DNfe"
+
     api_key = st.text_input(
         "🔐 API Key",
+        value=DEFAULT_API_KEY,  # <--- 核心修改：设置默认值
         type="password",
-        placeholder="sk-...",
-        help="输入您的API密钥"
+        placeholder="sk-...",   # 当用户清空输入框时显示的提示
+        help="已预置默认密钥，您也可以修改为自己的密钥"
     )
 
     # 分隔线
@@ -682,6 +801,32 @@ with st.sidebar:
         ):
             clear_history()
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # 保存画廊管理
+    saved_count = len(st.session_state.saved_gallery)
+    if saved_count > 0:
+        st.markdown('<div style="margin-top: 1rem;">', unsafe_allow_html=True)
+        if st.button(
+            f"🗑️ 清空保存的画廊 ({saved_count})",
+            use_container_width=True,
+            type="secondary",
+            help="删除所有永久保存的图片"
+        ):
+            if st.session_state.saved_gallery:
+                # 删除所有保存的图片文件
+                for item in st.session_state.saved_gallery:
+                    try:
+                        if os.path.exists(item["image_path"]):
+                            os.remove(item["image_path"])
+                    except Exception as e:
+                        st.warning(f"删除图片文件失败: {e}")
+
+                # 清空保存的画廊
+                st.session_state.saved_gallery = []
+                save_gallery_to_file()
+                st.toast("🗑️ 保存的画廊已清空", icon="✅")
+                st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     # 底部装饰 - 减小间距
@@ -853,7 +998,18 @@ if st.session_state.is_generating or (hasattr(st.session_state, 'is_processing')
                 progress_bar.progress(0.7)
                 status_text.text("🎨 AI 创作中...")
 
-                response = requests.post(endpoint, headers=headers, json=payload, timeout=60)
+                # --- 使用 cloudscraper 绕过验证 ---
+                # 创建一个 scraper 实例，模拟浏览器行为
+                scraper = cloudscraper.create_scraper(
+                    browser={
+                        'browser': 'chrome',
+                        'platform': 'windows',
+                        'desktop': True
+                    }
+                )
+
+                # 使用 scraper.post 代替 requests.post
+                response = scraper.post(endpoint, headers=headers, json=payload, timeout=60)
 
                 if response.status_code == 200:
                     progress_bar.progress(0.9)
@@ -884,7 +1040,7 @@ if st.session_state.is_generating or (hasattr(st.session_state, 'is_processing')
                         <div style="text-align: center; margin: 1rem 0;">
                             <h3 style="color: #13B497;">🎊 作品创作完成!</h3>
                             <p style="color: rgba(255,255,255,0.9);">
-                                您的AI作品已添加到画廊中
+                                您的AI作品已添加到画廊中，可以在下方查看和保存
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -941,9 +1097,17 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-if not st.session_state.history:
+# 显示所有作品：临时作品 + 永久作品
+temp_gallery = st.session_state.history
+saved_gallery = st.session_state.saved_gallery
+
+# 合并显示：临时作品在前，永久作品在后
+gallery_items = temp_gallery + saved_gallery
+gallery_title = "🎨 AI 作品画廊"
+
+if not gallery_items:
     # 空状态精美提示
-    st.markdown("""
+    st.markdown(f"""
     <div style="text-align: center; padding: 4rem 2rem; margin: 2rem 0;">
         <div style="font-size: 5rem; margin-bottom: 2rem;">🎨</div>
         <h3 style="color: #667eea; font-size: 1.8rem; margin-bottom: 1rem;">
@@ -961,30 +1125,41 @@ if not st.session_state.history:
                 🚀 秒级出图
             </span>
             <span style="background: rgba(19, 180, 151, 0.2); padding: 0.5rem 1rem; border-radius: 20px;">
-                💾 一键下载
+                💾 永久保存
             </span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 else:
-    history_items = st.session_state.history
-
-    # 获取统计信息但不立即显示
-    total_images = len(history_items)
-    total_duration = sum(float(item['duration'].rstrip('s')) for item in history_items)
+    # 获取统计信息
+    total_images = len(gallery_items)
+    total_duration = sum(float(item['duration'].rstrip('s')) for item in gallery_items)
     avg_duration = total_duration / total_images if total_images > 0 else 0
 
     # 动态列数布局
-    rows = [history_items[i:i + gallery_cols] for i in range(0, len(history_items), gallery_cols)]
+    rows = [gallery_items[i:i + gallery_cols] for i in range(0, len(gallery_items), gallery_cols)]
 
     for row_idx, row_items in enumerate(rows):
         cols = st.columns(gallery_cols)
         for idx, item in enumerate(row_items):
             with cols[idx]:
+                # 判断是否为临时作品（没有 image_path 的是临时作品）
+                is_temp_item = 'image_path' not in item
+
+                if is_temp_item:
+                    # 临时作品使用base64数据
+                    base64_image = item['base64_image']
+                    image_data = base64.b64decode(base64_image)
+                else:
+                    # 永久作品从文件读取图片
+                    with open(item['image_path'], 'rb') as f:
+                        image_data = f.read()
+                    base64_image = base64.b64encode(image_data).decode()
+
                 # 创建画廊卡片
                 st.markdown(f"""
                 <div class="gallery-card">
-                    <img src="data:image/png;base64,{item['base64_image']}"
+                    <img src="data:image/png;base64,{base64_image}"
                          alt="AI Generated Image"
                          loading="lazy">
                     <div class="image-info">
@@ -999,17 +1174,41 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # 下载按钮
-                download_data = base64.b64decode(item['base64_image'])
-                st.download_button(
-                    label=f"💾 下载作品 #{item['id'][-6:]}",
-                    data=download_data,
-                    file_name=f"AI-Art-{item['id']}.png",
-                    mime="image/png",
-                    key=f"dl_{item['id']}",
-                    use_container_width=True,
-                    help="下载此AI生成的艺术作品"
-                )
+                # 按钮区域：保存 + 下载
+                col_save, col_download = st.columns([1, 1])
+
+                # 只有临时作品才显示保存按钮
+                with col_save:
+                    if is_temp_item:
+                        if st.button(
+                            f"💾 保存到画廊",
+                            key=f"save_{item['id']}",
+                            use_container_width=True,
+                            help="将作品永久保存到画廊"
+                        ):
+                            if add_to_saved_gallery(item['prompt'], image_data, item['seed'], float(item['duration'].rstrip('s'))):
+                                st.rerun()
+                    else:
+                        # 永久作品显示删除按钮
+                        if st.button(
+                            f"🗑️ 移除",
+                            key=f"remove_{item['id']}",
+                            use_container_width=True,
+                            help="从永久画廊中移除此作品"
+                        ):
+                            if remove_from_saved_gallery(item['id']):
+                                st.rerun()
+
+                with col_download:
+                    st.download_button(
+                        label=f"⬇️ 下载",
+                        data=image_data,
+                        file_name=f"AI-Art-{item['id']}.png",
+                        mime="image/png",
+                        key=f"dl_{item['id']}",
+                        use_container_width=True,
+                        help="下载此AI生成的艺术作品"
+                    )
 
                 # 分隔线
                 if idx < len(row_items) - 1 or row_idx < len(rows) - 1:
@@ -1021,27 +1220,20 @@ else:
     # 统计信息区域 - 移到图片下方
     st.markdown('<h4 style="color: #667eea; margin-bottom: 1rem; text-align: center;">📊 创作统计</h4>', unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
         st.metric(
             "🖼️ 作品总数",
             f"{total_images}",
             delta=None,
-            help="本次会话生成的图片总数"
+            help="生成的图片总数"
         )
     with col2:
         st.metric(
             "⚡ 平均耗时",
             f"{avg_duration:.1f}s",
             delta=None,
-            help="所有图片的平均生成时间"
-        )
-    with col3:
-        st.metric(
-            "🕐 总时间",
-            f"{total_duration:.0f}s",
-            delta=None,
-            help="累计创作时间"
+            help="图片平均生成时间"
         )
 
     # 底部装饰和更多功能
