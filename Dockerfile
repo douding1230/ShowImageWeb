@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 
 # 暴露 Streamlit 默认端口
-EXPOSE 8501
+EXPOSE 8080
 
 # 启动命令
 CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
