@@ -103,7 +103,7 @@ http://localhost:8501
 
 **构建阶段**: 使用 `--network=host` 参数让 Docker 构建过程使用 WSL2 主机网络
 ```bash
-docker build --network=host -t showimageweb .
+docker build --network=host -t showimageweb-container .
 ```
 
 **运行阶段**: 在 `docker-compose.yml` 中配置 `network_mode: "host"`
